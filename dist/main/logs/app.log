@@ -1,0 +1,6 @@
+2025-05-20 00:08:12,309 - network_toolkit - INFO - Application started
+2025-05-20 00:08:15,361 - network_toolkit - INFO - Executing ping to google.com with count 4
+2025-05-20 00:08:18,430 - network_toolkit - INFO - Ping execution completed
+2025-05-20 00:09:13,591 - network_toolkit - INFO - Application started
+2025-05-20 00:09:33,238 - network_toolkit - INFO - Executing DNS lookup for example.com with record type A
+2025-05-20 00:09:33,360 - network_toolkit - INFO - DNS lookup completed
