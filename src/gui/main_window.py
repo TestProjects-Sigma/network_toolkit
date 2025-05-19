@@ -26,63 +26,85 @@ class NetworkToolkitApp(ctk.CTk):
         # Configure window
         self.title("Network Toolkit")
         self.geometry("950x650")
-        ctk.set_appearance_mode("dark")  # Options: "dark", "light", "system"
-        ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
+        ctk.set_appearance_mode("dark")
+        ctk.set_default_color_theme("blue")
         
         # Configure grid layout
-        self.grid_columnconfigure(0, weight=1)
-        self.grid_columnconfigure(1, weight=5)
+        self.grid_columnconfigure(0, weight=0)  # Fixed width for sidebar
+        self.grid_columnconfigure(1, weight=1)  # Content area expands
         self.grid_rowconfigure(0, weight=1)
-
-        # Define standard button width for all sidebar buttons
-        sidebar_button_width = 200  # Adjust as needed for your UI
         
-        # Create sidebar frame with tools
-        self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
+        # Create sidebar frame with fixed width
+        self.sidebar_frame = ctk.CTkFrame(self, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(10, weight=1)
+        
+        # Fix the sidebar width and prevent resizing
+        self.sidebar_frame.configure(width=250)
+        self.sidebar_frame.grid_propagate(False)
         
         # App title in sidebar
-        self.app_title = ctk.CTkLabel(self.sidebar_frame, text="Network Toolkit", font=ctk.CTkFont(size=20, weight="bold"))
-        self.app_title.grid(row=0, column=0, padx=20, pady=(20, 10))
+        self.app_title = ctk.CTkLabel(
+            self.sidebar_frame, 
+            text="Network Toolkit", 
+            font=ctk.CTkFont(size=20, weight="bold"),
+            anchor="center"
+        )
+        self.app_title.grid(row=0, column=0, padx=20, pady=(20, 20), sticky="ew")
         
-        # Tools buttons
-        self.ping_button = ctk.CTkButton(self.sidebar_frame, text="Ping", command=self.show_ping_tool, width=sidebar_button_width)
-        self.ping_button.grid(row=1, column=0, padx=20, pady=10)
+        # Fixed button width - ensure it fits within the sidebar
+        button_width = 210
         
-        # Enable the DNS button (change state to normal)
-        self.dns_button = ctk.CTkButton(self.sidebar_frame, text="DNS Lookup", command=self.show_dns_tool, width=sidebar_button_width)
-        self.dns_button.grid(row=2, column=0, padx=20, pady=10)
+        # Create button frame to contain all buttons with fixed width
+        self.button_container = ctk.CTkFrame(self.sidebar_frame, fg_color="transparent")
+        self.button_container.grid(row=1, column=0, padx=0, pady=0, sticky="nsew")
+        self.button_container.grid_columnconfigure(0, weight=1)
         
-        self.tracert_button = ctk.CTkButton(self.sidebar_frame, text="Traceroute", command=self.show_traceroute_tool, width=sidebar_button_width)
-        self.tracert_button.grid(row=3, column=0, padx=20, pady=10)
+        # Button configurations with uniform creation
+        button_configs = [
+            {"name": "ping_button", "text": "Ping", "command": self.show_ping_tool},
+            {"name": "dns_button", "text": "DNS Lookup", "command": self.show_dns_tool},
+            {"name": "tracert_button", "text": "Traceroute", "command": self.show_traceroute_tool},
+            {"name": "speedtest_button", "text": "Speed Test", "command": self.show_speedtest_tool},
+            {"name": "whois_button", "text": "WHOIS", "command": self.show_whois_tool},
+            {"name": "port_scan_button", "text": "Port Scanner", "command": self.show_port_scanner_tool},
+            {"name": "ssh_terminal_button", "text": "SSH Terminal", "command": self.show_ssh_terminal_tool},
+            {"name": "smtp_tester_button", "text": "SMTP Tester", "command": self.show_smtp_tester_tool},
+            {"name": "mail_header_button", "text": "Header Analyzer", "command": self.show_mail_header_tool},
+            {
+                "name": "packet_analyzer_button", 
+                "text": "Packet Analyzer", 
+                "command": self.show_packet_analyzer_tool, 
+                "state": "normal" if SCAPY_AVAILABLE else "disabled"
+            }
+        ]
         
-        self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", command=self.show_speedtest_tool, width=sidebar_button_width)
-        self.speedtest_button.grid(row=4, column=0, padx=20, pady=10)
-        
-        self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", command=self.show_whois_tool, width=sidebar_button_width)
-        self.whois_button.grid(row=5, column=0, padx=20, pady=10)
-
-        self.port_scan_button = ctk.CTkButton(self.sidebar_frame, text="Port Scanner", command=self.show_port_scanner_tool, width=sidebar_button_width)
-        self.port_scan_button.grid(row=6, column=0, padx=20, pady=10)
-
-        self.ssh_terminal_button = ctk.CTkButton(self.sidebar_frame, text="SSH Terminal", command=self.show_ssh_terminal_tool, width=sidebar_button_width)
-        self.ssh_terminal_button.grid(row=7, column=0, padx=20, pady=10)
-
-        self.smtp_tester_button = ctk.CTkButton(self.sidebar_frame, text="SMTP Tester", command=self.show_smtp_tester_tool, width=sidebar_button_width)
-        self.smtp_tester_button.grid(row=8, column=0, padx=20, pady=10)
-
-        self.mail_header_button = ctk.CTkButton(self.sidebar_frame, text="Header Analyzer", command=self.show_mail_header_tool, width=sidebar_button_width)
-        self.mail_header_button.grid(row=9, column=0, padx=20, pady=10)
-
-        self.packet_analyzer_button = ctk.CTkButton(self.sidebar_frame, text="Packet Analyzer", command=self.show_packet_analyzer_tool,  state="normal" if SCAPY_AVAILABLE else "disabled", width=sidebar_button_width)
-        self.packet_analyzer_button.grid(row=10, column=0, padx=20, pady=10)
+        # Create buttons with absolute uniformity
+        for i, config in enumerate(button_configs):
+            # Create a subframe for each button to maintain consistent width
+            button_frame = ctk.CTkFrame(self.button_container, fg_color="transparent")
+            button_frame.grid(row=i, column=0, padx=20, pady=5, sticky="ew")
+            button_frame.grid_columnconfigure(0, weight=1)
+            
+            # Create the button with fixed width
+            button = ctk.CTkButton(
+                button_frame,
+                text=config["text"],
+                command=config["command"],
+                state=config.get("state", "normal"),
+                width=button_width,
+                height=32,
+                corner_radius=8,
+            )
+            button.grid(row=0, column=0, sticky="ew")
+            
+            # Store the button as an instance attribute
+            setattr(self, config["name"], button)
         
         # Main content frame
         self.content_frame = ctk.CTkFrame(self)
         self.content_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
         self.content_frame.grid_columnconfigure(0, weight=1)
-        self.content_frame.grid_rowconfigure(3, weight=1)
+        self.content_frame.grid_rowconfigure(1, weight=1)
         
         # Initially show ping tool
         self.show_ping_tool()
@@ -525,38 +547,47 @@ class NetworkToolkitApp(ctk.CTk):
         title = ctk.CTkLabel(self.content_frame, text="Port Scanner", font=ctk.CTkFont(size=18, weight="bold"))
         title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
         
-        # Create form frame with more space
-        form_frame = ctk.CTkFrame(self.content_frame)
-        form_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
-        form_frame.grid_columnconfigure(1, weight=1)
+        # Create main frame
+        main_frame = ctk.CTkFrame(self.content_frame)
+        main_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="nsew")
+        main_frame.grid_columnconfigure(0, weight=1)
         
-        # Warning text
+        # Warning message
         warning_text = ("WARNING: Port scanning may be against the Terms of Service of your network or ISP.\n"
-                      "Only scan hosts you have permission to scan.")
+                       "Only scan hosts you have permission to scan.")
         
-        warning_label = ctk.CTkLabel(form_frame, text=warning_text, 
-                                   text_color=("red", "red"), justify="left")
-        warning_label.grid(row=0, column=0, columnspan=2, padx=20, pady=(20, 10), sticky="w")
+        warning_label = ctk.CTkLabel(main_frame, text=warning_text, 
+                                   text_color=("red", "red"), wraplength=800)
+        warning_label.grid(row=0, column=0, columnspan=2, padx=20, pady=(10, 10), sticky="w")
+        
+        # Create the settings section
+        settings_frame = ctk.CTkFrame(main_frame)
+        settings_frame.grid(row=1, column=0, padx=20, pady=(10, 10), sticky="new")
+        settings_frame.grid_columnconfigure(1, weight=1)
         
         # Host input
-        host_label = ctk.CTkLabel(form_frame, text="Host:")
-        host_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        host_label = ctk.CTkLabel(settings_frame, text="Host:")
+        host_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
         
-        self.port_scan_host_entry = ctk.CTkEntry(form_frame, width=300)
-        self.port_scan_host_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        self.port_scan_host_entry = ctk.CTkEntry(settings_frame, width=300)
+        self.port_scan_host_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
         self.port_scan_host_entry.insert(0, "localhost")
         
         # Port selection section
-        ports_label = ctk.CTkLabel(form_frame, text="Ports to scan:", font=ctk.CTkFont(weight="bold"))
-        ports_label.grid(row=2, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="w")
+        ports_label = ctk.CTkLabel(settings_frame, text="Ports to scan:", font=ctk.CTkFont(weight="bold"))
+        ports_label.grid(row=1, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="w")
         
-        # Common ports checkboxes
-        common_ports_frame = ctk.CTkFrame(form_frame)
-        common_ports_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
-        common_ports_frame.grid_columnconfigure(4, weight=1)  # Make the last column expandable
+        # Common ports checkboxes - Arranged in a more compact grid
+        common_ports_frame = ctk.CTkFrame(settings_frame)
+        common_ports_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+        common_ports_frame.grid_columnconfigure((0,1,2,3,4), weight=1)  # 5 columns
         
         # Get common ports list
-        common_ports = get_common_ports()
+        common_ports = [
+            (21, "FTP"), (22, "SSH"), (23, "Telnet"), (25, "SMTP"), (53, "DNS"),
+            (80, "HTTP"), (110, "POP3"), (143, "IMAP"), (443, "HTTPS"), (445, "SMB"),
+            (3306, "MySQL"), (3389, "RDP"), (8080, "HTTP-Proxy")
+        ]
         
         # Create a dictionary to store the checkbox variables
         self.port_checkboxes = {}
@@ -576,50 +607,62 @@ class NetworkToolkitApp(ctk.CTk):
             checkbox.grid(row=row, column=col, padx=10, pady=5, sticky="w")
         
         # Custom port range input
-        custom_ports_label = ctk.CTkLabel(form_frame, text="Custom ports:", font=ctk.CTkFont(weight="bold"))
-        custom_ports_label.grid(row=4, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="w")
+        custom_ports_label = ctk.CTkLabel(settings_frame, text="Custom ports:", font=ctk.CTkFont(weight="bold"))
+        custom_ports_label.grid(row=3, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="w")
         
-        custom_ports_help = ctk.CTkLabel(form_frame, 
+        custom_ports_help = ctk.CTkLabel(settings_frame, 
                                        text="Enter port numbers separated by commas (e.g., 8000,8080,9000)",
                                        font=ctk.CTkFont(size=12))
-        custom_ports_help.grid(row=5, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+        custom_ports_help.grid(row=4, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
         
-        self.custom_ports_entry = ctk.CTkEntry(form_frame, width=300)
-        self.custom_ports_entry.grid(row=6, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
+        self.custom_ports_entry = ctk.CTkEntry(settings_frame, width=300)
+        self.custom_ports_entry.grid(row=5, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
         
-        # Create button frame
-        button_frame = ctk.CTkFrame(form_frame)
-        button_frame.grid(row=7, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="ew")
-        button_frame.grid_columnconfigure(1, weight=1)
+        # Important: Action buttons section - ENSURE VISIBILITY
+        action_frame = ctk.CTkFrame(main_frame, fg_color=("#E3E3E3", "#333333"))  # Highlighted background
+        action_frame.grid(row=2, column=0, padx=20, pady=20, sticky="ew")
+        action_frame.grid_columnconfigure(1, weight=1)
         
-        # Scan button
-        self.port_scan_button = ctk.CTkButton(button_frame, text="Start Scan", 
-                                           command=self.execute_port_scan, width=120)
-        self.port_scan_button.grid(row=0, column=0, padx=(10, 10), pady=10, sticky="w")
+        # Scan button - Make it prominent
+        self.port_scan_button = ctk.CTkButton(
+            action_frame, 
+            text="Start Scan", 
+            command=self.execute_port_scan, 
+            width=150,
+            height=40,  # Taller button
+            font=ctk.CTkFont(size=14, weight="bold")  # Larger font
+        )
+        self.port_scan_button.grid(row=0, column=0, padx=20, pady=15, sticky="w")
         
-        # Progress bar and status
-        self.port_scan_progress_frame = ctk.CTkFrame(button_frame)
-        self.port_scan_progress_frame.grid(row=0, column=1, padx=(10, 10), pady=10, sticky="ew")
-        self.port_scan_progress_frame.grid_columnconfigure(0, weight=1)
+        # Status label
+        self.port_scan_status_label = ctk.CTkLabel(action_frame, text="Ready to scan")
+        self.port_scan_status_label.grid(row=0, column=1, padx=20, pady=15, sticky="w")
         
-        self.port_scan_progress_bar = ctk.CTkProgressBar(self.port_scan_progress_frame, width=300)
-        self.port_scan_progress_bar.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="ew")
+        # IMPORTANT: Progress Bar - Separate location
+        self.port_scan_progress_bar = ctk.CTkProgressBar(action_frame, width=300)
+        self.port_scan_progress_bar.grid(row=1, column=0, columnspan=2, padx=20, pady=(0, 15), sticky="ew")
         self.port_scan_progress_bar.set(0)
         
-        self.port_scan_status_label = ctk.CTkLabel(self.port_scan_progress_frame, text="Ready to scan")
-        self.port_scan_status_label.grid(row=1, column=0, padx=10, pady=(5, 5), sticky="w")
+        # Results section - BELOW the action buttons
+        results_frame = ctk.CTkFrame(main_frame)
+        results_frame.grid(row=3, column=0, padx=20, pady=(20, 20), sticky="nsew")
+        results_frame.grid_columnconfigure(0, weight=1)
+        results_frame.grid_rowconfigure(1, weight=1)
+        
+        # Results label
+        results_label = ctk.CTkLabel(results_frame, text="Results:", font=ctk.CTkFont(weight="bold"))
+        results_label.grid(row=0, column=0, padx=10, pady=(10, 5), sticky="w")
         
         # Output text area
-        output_label = ctk.CTkLabel(self.content_frame, text="Results:")
-        output_label.grid(row=2, column=0, padx=20, pady=(20, 5), sticky="w")
+        self.output_textbox = ctk.CTkTextbox(results_frame, height=200)
+        self.output_textbox.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="nsew")
         
-        self.output_textbox = ctk.CTkTextbox(self.content_frame, height=300)
-        self.output_textbox.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="nsew")
-        self.content_frame.grid_rowconfigure(3, weight=1)
+        # Make the results frame expandable
+        main_frame.grid_rowconfigure(3, weight=1)
         
         # Initial message
         self.output_textbox.insert("1.0", "Select ports to scan and click 'Start Scan'.\n\n"
-                                  "WARNING: Only scan systems you have permission to scan.")
+                                 "WARNING: Only scan systems you have permission to scan.")
 
     def execute_port_scan(self):
         # Get the host
