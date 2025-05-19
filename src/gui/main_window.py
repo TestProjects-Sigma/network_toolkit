@@ -5,6 +5,7 @@ from ..tools.dns_lookup import dns_lookup, get_common_record_types
 from ..utils.logger import setup_logger
 from ..tools.traceroute import traceroute
 from ..tools.speedtest import run_speed_test, format_speed_test_results
+from ..tools.whois_lookup import whois_lookup
 
 
 class NetworkToolkitApp(ctk.CTk):
@@ -50,7 +51,7 @@ class NetworkToolkitApp(ctk.CTk):
         self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", command=self.show_speedtest_tool)
         self.speedtest_button.grid(row=4, column=0, padx=20, pady=10)
         
-        self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", state="disabled")
+        self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", command=self.show_whois_tool)
         self.whois_button.grid(row=5, column=0, padx=20, pady=10)
         
         # Main content frame
@@ -415,3 +416,78 @@ class NetworkToolkitApp(ctk.CTk):
             
             # Re-enable the button
             self.speedtest_execute_button.configure(state="normal", text="Start Speed Test")
+
+    def show_whois_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="WHOIS Lookup Tool", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create form frame with more space
+        form_frame = ctk.CTkFrame(self.content_frame)
+        form_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Info text
+        info_text = ("WHOIS provides information about domain registration, including:\n"
+                   "• Domain owner (if available)\n"
+                   "• Registration and expiration dates\n"
+                   "• Nameservers\n"
+                   "• Registrar information")
+        
+        info_label = ctk.CTkLabel(form_frame, text=info_text, justify="left")
+        info_label.grid(row=0, column=0, columnspan=2, padx=20, pady=(20, 10), sticky="w")
+        
+        # Domain input
+        domain_label = ctk.CTkLabel(form_frame, text="Domain:")
+        domain_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        self.whois_domain_entry = ctk.CTkEntry(form_frame, width=300)
+        self.whois_domain_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        self.whois_domain_entry.insert(0, "example.com")
+        
+        # Execute button
+        self.whois_execute_button = ctk.CTkButton(form_frame, text="Lookup", 
+                                              command=self.execute_whois, width=120)
+        self.whois_execute_button.grid(row=2, column=1, padx=10, pady=(10, 20), sticky="w")
+        
+        # Output text area
+        output_label = ctk.CTkLabel(self.content_frame, text="Results:")
+        output_label.grid(row=2, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.output_textbox = ctk.CTkTextbox(self.content_frame, height=300)
+        self.output_textbox.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(3, weight=1)
+        
+        # Initial message
+        self.output_textbox.insert("1.0", "Enter a domain name and click 'Lookup' to retrieve WHOIS information.")
+
+    def execute_whois(self):
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", "Performing WHOIS lookup, please wait...\n")
+        self.whois_execute_button.configure(state="disabled", text="Looking up...")
+        
+        domain = self.whois_domain_entry.get()
+        
+        # Log the action
+        self.logger.info(f"Executing WHOIS lookup for {domain}")
+        
+        # Run whois lookup in a separate thread to avoid freezing the GUI
+        threading.Thread(target=self._run_whois, args=(domain,), daemon=True).start()
+
+    def _run_whois(self, domain):
+        results = whois_lookup(domain)
+        
+        # Update UI in the main thread
+        self.after(0, lambda: self._update_whois_results(results))
+
+    def _update_whois_results(self, results):
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", results)
+        self.whois_execute_button.configure(state="normal", text="Lookup")
+        
+        # Log completion
+        self.logger.info("WHOIS lookup completed")
