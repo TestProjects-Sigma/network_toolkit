@@ -6,6 +6,7 @@ from ..utils.logger import setup_logger
 from ..tools.traceroute import traceroute
 from ..tools.speedtest import run_speed_test, format_speed_test_results
 from ..tools.whois_lookup import whois_lookup
+from ..tools.port_scanner import scan_ports, get_common_ports, format_scan_results
 
 
 class NetworkToolkitApp(ctk.CTk):
@@ -53,6 +54,9 @@ class NetworkToolkitApp(ctk.CTk):
         
         self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", command=self.show_whois_tool)
         self.whois_button.grid(row=5, column=0, padx=20, pady=10)
+
+        self.port_scan_button = ctk.CTkButton(self.sidebar_frame, text="Port Scanner", command=self.show_port_scanner_tool)
+        self.port_scan_button.grid(row=6, column=0, padx=20, pady=10)
         
         # Main content frame
         self.content_frame = ctk.CTkFrame(self)
@@ -488,6 +492,185 @@ class NetworkToolkitApp(ctk.CTk):
         self.output_textbox.delete("1.0", "end")
         self.output_textbox.insert("end", results)
         self.whois_execute_button.configure(state="normal", text="Lookup")
-        
+      
         # Log completion
         self.logger.info("WHOIS lookup completed")
+
+    def show_port_scanner_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="Port Scanner", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create form frame with more space
+        form_frame = ctk.CTkFrame(self.content_frame)
+        form_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Warning text
+        warning_text = ("WARNING: Port scanning may be against the Terms of Service of your network or ISP.\n"
+                      "Only scan hosts you have permission to scan.")
+        
+        warning_label = ctk.CTkLabel(form_frame, text=warning_text, 
+                                   text_color=("red", "red"), justify="left")
+        warning_label.grid(row=0, column=0, columnspan=2, padx=20, pady=(20, 10), sticky="w")
+        
+        # Host input
+        host_label = ctk.CTkLabel(form_frame, text="Host:")
+        host_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        self.port_scan_host_entry = ctk.CTkEntry(form_frame, width=300)
+        self.port_scan_host_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        self.port_scan_host_entry.insert(0, "localhost")
+        
+        # Port selection section
+        ports_label = ctk.CTkLabel(form_frame, text="Ports to scan:", font=ctk.CTkFont(weight="bold"))
+        ports_label.grid(row=2, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="w")
+        
+        # Common ports checkboxes
+        common_ports_frame = ctk.CTkFrame(form_frame)
+        common_ports_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=5, sticky="ew")
+        common_ports_frame.grid_columnconfigure(4, weight=1)  # Make the last column expandable
+        
+        # Get common ports list
+        common_ports = get_common_ports()
+        
+        # Create a dictionary to store the checkbox variables
+        self.port_checkboxes = {}
+        
+        # Create checkboxes for common ports, 5 per row
+        for i, (port, service) in enumerate(common_ports):
+            row = i // 5
+            col = i % 5
+            
+            # Create a variable for the checkbox
+            var = ctk.BooleanVar(value=False)
+            self.port_checkboxes[port] = var
+            
+            # Create the checkbox
+            checkbox = ctk.CTkCheckBox(common_ports_frame, text=f"{port} ({service})",
+                                     variable=var, onvalue=True, offvalue=False)
+            checkbox.grid(row=row, column=col, padx=10, pady=5, sticky="w")
+        
+        # Custom port range input
+        custom_ports_label = ctk.CTkLabel(form_frame, text="Custom ports:", font=ctk.CTkFont(weight="bold"))
+        custom_ports_label.grid(row=4, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="w")
+        
+        custom_ports_help = ctk.CTkLabel(form_frame, 
+                                       text="Enter port numbers separated by commas (e.g., 8000,8080,9000)",
+                                       font=ctk.CTkFont(size=12))
+        custom_ports_help.grid(row=5, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="w")
+        
+        self.custom_ports_entry = ctk.CTkEntry(form_frame, width=300)
+        self.custom_ports_entry.grid(row=6, column=0, columnspan=2, padx=10, pady=(0, 10), sticky="ew")
+        
+        # Create button frame
+        button_frame = ctk.CTkFrame(form_frame)
+        button_frame.grid(row=7, column=0, columnspan=2, padx=10, pady=(20, 10), sticky="ew")
+        button_frame.grid_columnconfigure(1, weight=1)
+        
+        # Scan button
+        self.port_scan_button = ctk.CTkButton(button_frame, text="Start Scan", 
+                                           command=self.execute_port_scan, width=120)
+        self.port_scan_button.grid(row=0, column=0, padx=(10, 10), pady=10, sticky="w")
+        
+        # Progress bar and status
+        self.port_scan_progress_frame = ctk.CTkFrame(button_frame)
+        self.port_scan_progress_frame.grid(row=0, column=1, padx=(10, 10), pady=10, sticky="ew")
+        self.port_scan_progress_frame.grid_columnconfigure(0, weight=1)
+        
+        self.port_scan_progress_bar = ctk.CTkProgressBar(self.port_scan_progress_frame, width=300)
+        self.port_scan_progress_bar.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="ew")
+        self.port_scan_progress_bar.set(0)
+        
+        self.port_scan_status_label = ctk.CTkLabel(self.port_scan_progress_frame, text="Ready to scan")
+        self.port_scan_status_label.grid(row=1, column=0, padx=10, pady=(5, 5), sticky="w")
+        
+        # Output text area
+        output_label = ctk.CTkLabel(self.content_frame, text="Results:")
+        output_label.grid(row=2, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.output_textbox = ctk.CTkTextbox(self.content_frame, height=300)
+        self.output_textbox.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(3, weight=1)
+        
+        # Initial message
+        self.output_textbox.insert("1.0", "Select ports to scan and click 'Start Scan'.\n\n"
+                                  "WARNING: Only scan systems you have permission to scan.")
+
+    def execute_port_scan(self):
+        # Get the host
+        host = self.port_scan_host_entry.get()
+        if not host:
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("end", "Error: Please enter a host to scan")
+            return
+        
+        # Get selected ports
+        ports_to_scan = []
+        
+        # Add checked common ports
+        for port, var in self.port_checkboxes.items():
+            if var.get():
+                ports_to_scan.append(port)
+        
+        # Add custom ports
+        custom_ports = self.custom_ports_entry.get().strip()
+        if custom_ports:
+            try:
+                for port_str in custom_ports.split(','):
+                    port = int(port_str.strip())
+                    if 1 <= port <= 65535 and port not in ports_to_scan:
+                        ports_to_scan.append(port)
+            except ValueError:
+                self.output_textbox.delete("1.0", "end")
+                self.output_textbox.insert("end", "Error: Invalid port number in custom ports field")
+                return
+        
+        # Check if any ports are selected
+        if not ports_to_scan:
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("end", "Error: Please select at least one port to scan")
+            return
+        
+        # Start the scan
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", f"Starting port scan of {host}, please wait...\n")
+        self.port_scan_button.configure(state="disabled", text="Scanning...")
+        self.port_scan_progress_bar.set(0)
+        self.port_scan_status_label.configure(text="Initializing...")
+        
+        # Log the action
+        self.logger.info(f"Starting port scan of {host} with {len(ports_to_scan)} ports")
+        
+        # Run scan with progress updates
+        self.port_scan_result = scan_ports(host, ports_to_scan, self.update_port_scan_progress)
+
+    def update_port_scan_progress(self, result):
+        """Update the UI with current port scan progress"""
+        # Update progress bar
+        self.port_scan_progress_bar.set(result.progress / 100)
+        
+        # Update status
+        if result.current_port:
+            self.port_scan_status_label.configure(text=f"{result.status} (Port: {result.current_port})")
+        else:
+            self.port_scan_status_label.configure(text=result.status)
+        
+        # If finished, update results
+        if result.finished:
+            if result.error:
+                self.output_textbox.delete("1.0", "end")
+                self.output_textbox.insert("end", f"Error during port scan: {result.error}")
+                self.logger.error(f"Port scan failed: {result.error}")
+            else:
+                self.output_textbox.delete("1.0", "end")
+                formatted_results = format_scan_results(result)
+                self.output_textbox.insert("end", formatted_results)
+                self.logger.info(f"Port scan completed with {len(result.open_ports)} open ports found")
+            
+            # Re-enable the button
+            self.port_scan_button.configure(state="normal", text="Start Scan")

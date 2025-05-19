@@ -11,11 +11,10 @@ Network Toolkit is a desktop application designed for system administrators and 
 Currently implemented:
 - **Ping**: Test connectivity to hosts
 - **DNS Lookup**: Query DNS records with optional custom DNS servers
-
-Coming soon:
-- Traceroute
-- Speed Test
-- WHOIS Lookup
+- **Traceroute**: Trace network path to hosts with hop-by-hop analysis
+- **Speed Test**: Measure network download and upload speeds and latency
+- **WHOIS Lookup**: Retrieve domain registration information
+- **Port Scanner**: Scan for open ports on a host
 
 ## Installation
 
@@ -93,7 +92,11 @@ network_toolkit/
     ├── tools/                  # Network tool implementations
     │   ├── __init__.py
     │   ├── ping.py             # Ping functionality
-    │   └── dns_lookup.py       # DNS lookup functionality
+    │   ├── dns_lookup.py       # DNS lookup functionality
+    │   ├── traceroute.py       # Traceroute functionality
+    │   ├── speedtest.py        # Speed test functionality
+    │   ├── whois_lookup.py     # WHOIS lookup functionality
+    │   └── port_scanner.py     # Port scanning functionality
     └── utils/                  # Shared utilities
         ├── __init__.py
         └── logger.py           # Logging functionality
@@ -117,6 +120,37 @@ network_toolkit/
 4. Optionally enter a custom DNS server (e.g., 8.8.8.8 for Google DNS)
 5. Click "Lookup"
 6. View the results in the output window
+
+### Traceroute Tool
+
+1. Click on the "Traceroute" button in the sidebar
+2. Enter a hostname or IP address
+3. Optionally adjust the maximum hops and timeout values
+4. Click "Execute Traceroute"
+5. View the hop-by-hop path in the output window
+
+### Speed Test Tool
+
+1. Click on the "Speed Test" button in the sidebar
+2. Click "Start Speed Test"
+3. Wait for the test to complete (progress bar shows status)
+4. View your download/upload speeds and latency results
+
+### WHOIS Lookup Tool
+
+1. Click on the "WHOIS" button in the sidebar
+2. Enter a domain name
+3. Click "Lookup"
+4. View the domain registration information including owner, dates, and nameservers
+
+### Port Scanner Tool
+
+1. Click on the "Port Scanner" button in the sidebar
+2. Enter a host name or IP address
+3. Select common ports using the checkboxes
+4. Optionally enter custom ports in the field (comma-separated)
+5. Click "Start Scan"
+6. View the scan results showing open ports and services
 
 ## Development
 
