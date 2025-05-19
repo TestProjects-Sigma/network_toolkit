@@ -3,6 +3,7 @@ import threading
 from ..tools.ping import ping_host
 from ..tools.dns_lookup import dns_lookup, get_common_record_types
 from ..utils.logger import setup_logger
+from ..tools.traceroute import traceroute
 
 class NetworkToolkitApp(ctk.CTk):
     def __init__(self):
@@ -40,8 +41,9 @@ class NetworkToolkitApp(ctk.CTk):
         self.dns_button = ctk.CTkButton(self.sidebar_frame, text="DNS Lookup", command=self.show_dns_tool)
         self.dns_button.grid(row=2, column=0, padx=20, pady=10)
         
-        self.tracert_button = ctk.CTkButton(self.sidebar_frame, text="Traceroute", state="disabled")
+        self.tracert_button = ctk.CTkButton(self.sidebar_frame, text="Traceroute", command=self.show_traceroute_tool)
         self.tracert_button.grid(row=3, column=0, padx=20, pady=10)
+
         
         self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", state="disabled")
         self.speedtest_button.grid(row=4, column=0, padx=20, pady=10)
@@ -215,3 +217,105 @@ class NetworkToolkitApp(ctk.CTk):
         
         # Log completion
         self.logger.info("DNS lookup completed")
+
+    def show_traceroute_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="Traceroute Tool", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create form frame with more space
+        form_frame = ctk.CTkFrame(self.content_frame)
+        form_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
+        form_frame.grid_columnconfigure(1, weight=1)
+        
+        # Host input
+        host_label = ctk.CTkLabel(form_frame, text="Host:")
+        host_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        
+        self.tracert_host_entry = ctk.CTkEntry(form_frame, width=300)
+        self.tracert_host_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        self.tracert_host_entry.insert(0, "google.com")
+        
+        # Max hops input
+        max_hops_label = ctk.CTkLabel(form_frame, text="Max Hops:")
+        max_hops_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        self.max_hops_entry = ctk.CTkEntry(form_frame, width=100)
+        self.max_hops_entry.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+        self.max_hops_entry.insert(0, "30")
+        
+        # Timeout input
+        timeout_label = ctk.CTkLabel(form_frame, text="Timeout (s):")
+        timeout_label.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        
+        self.timeout_entry = ctk.CTkEntry(form_frame, width=100)
+        self.timeout_entry.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        self.timeout_entry.insert(0, "2")
+        
+        # Traceroute button - ensure it's fully visible
+        self.tracert_execute_button = ctk.CTkButton(form_frame, text="Execute Traceroute", 
+                                                  command=self.execute_traceroute, width=150)
+        self.tracert_execute_button.grid(row=3, column=1, padx=10, pady=(10, 20), sticky="w")
+        
+        # Output text area
+        output_label = ctk.CTkLabel(self.content_frame, text="Output:")
+        output_label.grid(row=2, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.output_textbox = ctk.CTkTextbox(self.content_frame, height=300)
+        self.output_textbox.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(3, weight=1)
+
+    def execute_traceroute(self):
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", "Executing traceroute, please wait...\n")
+        self.tracert_execute_button.configure(state="disabled", text="Tracing route...")
+        
+        host = self.tracert_host_entry.get()
+        
+        try:
+            max_hops = int(self.max_hops_entry.get())
+            if max_hops < 1:
+                max_hops = 30
+                self.max_hops_entry.delete(0, "end")
+                self.max_hops_entry.insert(0, "30")
+        except ValueError:
+            max_hops = 30
+            self.max_hops_entry.delete(0, "end")
+            self.max_hops_entry.insert(0, "30")
+            
+        try:
+            timeout = int(self.timeout_entry.get())
+            if timeout < 1:
+                timeout = 2
+                self.timeout_entry.delete(0, "end")
+                self.timeout_entry.insert(0, "2")
+        except ValueError:
+            timeout = 2
+            self.timeout_entry.delete(0, "end")
+            self.timeout_entry.insert(0, "2")
+        
+        # Log the action
+        self.logger.info(f"Executing traceroute to {host} with max hops {max_hops}, timeout {timeout}s")
+        
+        # Run traceroute in a separate thread to avoid freezing the GUI
+        threading.Thread(target=self._run_traceroute, 
+                         args=(host, max_hops, timeout), 
+                         daemon=True).start()
+
+    def _run_traceroute(self, host, max_hops, timeout):
+        results = traceroute(host, max_hops, timeout)
+        
+        # Update UI in the main thread
+        self.after(0, lambda: self._update_traceroute_results(results))
+
+    def _update_traceroute_results(self, results):
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", results)
+        self.tracert_execute_button.configure(state="normal", text="Execute Traceroute")
+        
+        # Log completion
+        self.logger.info("Traceroute execution completed")
