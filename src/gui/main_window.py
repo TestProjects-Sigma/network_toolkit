@@ -4,6 +4,8 @@ from ..tools.ping import ping_host
 from ..tools.dns_lookup import dns_lookup, get_common_record_types
 from ..utils.logger import setup_logger
 from ..tools.traceroute import traceroute
+from ..tools.speedtest import run_speed_test, format_speed_test_results
+
 
 class NetworkToolkitApp(ctk.CTk):
     def __init__(self):
@@ -45,7 +47,7 @@ class NetworkToolkitApp(ctk.CTk):
         self.tracert_button.grid(row=3, column=0, padx=20, pady=10)
 
         
-        self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", state="disabled")
+        self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", command=self.show_speedtest_tool)
         self.speedtest_button.grid(row=4, column=0, padx=20, pady=10)
         
         self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", state="disabled")
@@ -319,3 +321,97 @@ class NetworkToolkitApp(ctk.CTk):
         
         # Log completion
         self.logger.info("Traceroute execution completed")
+
+    def show_speedtest_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="Network Speed Test", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create info frame
+        info_frame = ctk.CTkFrame(self.content_frame)
+        info_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
+        info_frame.grid_columnconfigure(0, weight=1)
+        
+        # Info text
+        info_text = ("This tool measures your network connection performance including:\n"
+                    "• Download speed\n"
+                    "• Upload speed\n"
+                    "• Ping (latency)\n\n"
+                    "The test may take up to 1 minute to complete. Your connection will be "
+                    "actively used during the test.")
+        
+        info_label = ctk.CTkLabel(info_frame, text=info_text, justify="left")
+        info_label.grid(row=0, column=0, padx=20, pady=20, sticky="w")
+        
+        # Create button frame
+        button_frame = ctk.CTkFrame(self.content_frame)
+        button_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="new")
+        button_frame.grid_columnconfigure(1, weight=1)
+        
+        # Speed test button - ensure it's fully visible
+        self.speedtest_execute_button = ctk.CTkButton(button_frame, text="Start Speed Test", 
+                                                   command=self.execute_speedtest, width=150)
+        self.speedtest_execute_button.grid(row=0, column=0, padx=(20, 10), pady=20, sticky="w")
+        
+        # Progress bar and status
+        self.progress_frame = ctk.CTkFrame(button_frame)
+        self.progress_frame.grid(row=0, column=1, padx=(10, 20), pady=20, sticky="ew")
+        self.progress_frame.grid_columnconfigure(0, weight=1)
+        
+        self.progress_bar = ctk.CTkProgressBar(self.progress_frame, width=300)
+        self.progress_bar.grid(row=0, column=0, padx=10, pady=(5, 0), sticky="ew")
+        self.progress_bar.set(0)
+        
+        self.status_label = ctk.CTkLabel(self.progress_frame, text="Ready to start test")
+        self.status_label.grid(row=1, column=0, padx=10, pady=(5, 5), sticky="w")
+        
+        # Output text area
+        output_label = ctk.CTkLabel(self.content_frame, text="Results:")
+        output_label.grid(row=3, column=0, padx=20, pady=(20, 5), sticky="w")
+        
+        self.output_textbox = ctk.CTkTextbox(self.content_frame, height=300)
+        self.output_textbox.grid(row=4, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(4, weight=1)
+        
+        # Initial message
+        self.output_textbox.insert("1.0", "Click 'Start Speed Test' to begin measuring your network performance.")
+
+    def execute_speedtest(self):
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", "Starting speed test, please wait...\n")
+        self.speedtest_execute_button.configure(state="disabled", text="Testing...")
+        self.progress_bar.set(0)
+        self.status_label.configure(text="Initializing...")
+        
+        # Log the action
+        self.logger.info("Starting network speed test")
+        
+        # Run speed test with progress updates
+        self.speed_test_result = run_speed_test(self.update_speedtest_progress)
+
+    def update_speedtest_progress(self, result):
+        """Update the UI with current speed test progress"""
+        # Update progress bar
+        self.progress_bar.set(result.progress / 100)
+        
+        # Update status
+        self.status_label.configure(text=result.status)
+        
+        # If finished, update results
+        if result.finished:
+            if result.error:
+                self.output_textbox.delete("1.0", "end")
+                self.output_textbox.insert("end", f"Error during speed test: {result.error}")
+                self.logger.error(f"Speed test failed: {result.error}")
+            else:
+                self.output_textbox.delete("1.0", "end")
+                formatted_results = format_speed_test_results(result)
+                self.output_textbox.insert("end", formatted_results)
+                self.logger.info("Speed test completed successfully")
+            
+            # Re-enable the button
+            self.speedtest_execute_button.configure(state="normal", text="Start Speed Test")
