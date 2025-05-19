@@ -17,6 +17,7 @@ Currently implemented:
 - **Port Scanner**: Scan for open ports on a host
 - **SSH Terminal**: Connect to remote servers via SSH
 - **SMTP Tester**: Test email delivery and SMTP server configurations
+- **Mail Header Analyzer**: Analyze email headers for authentication and routing information
 
 ## Installation
 
@@ -100,7 +101,8 @@ network_toolkit/
     │   ├── whois_lookup.py     # WHOIS lookup functionality
     │   ├── port_scanner.py     # Port scanning functionality
     │   ├── ssh_terminal.py     # SSH terminal functionality
-    │   └── smtp_tester.py      # SMTP testing functionality
+    │   ├── smtp_tester.py      # SMTP testing functionality
+    │   └── mail_header_analyzer.py # Email header analysis
     └── utils/                  # Shared utilities
         ├── __init__.py
         └── logger.py           # Logging functionality
@@ -173,6 +175,17 @@ network_toolkit/
 4. Set security and authentication options in the Security tab
 5. Click "Send Test Email"
 6. View the detailed test results including connection logs
+
+### Mail Header Analyzer Tool
+
+1. Click on the "Header Analyzer" button in the sidebar
+2. Paste email headers into the input area (or click "Load Example")
+3. Click "Analyze Headers"
+4. View the detailed analysis including:
+   - Authentication results (SPF, DKIM, DMARC)
+   - Delivery path and timing
+   - Security assessment
+   - Spam likelihood
 
 ## Development
 

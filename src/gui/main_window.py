@@ -9,6 +9,7 @@ from ..tools.whois_lookup import whois_lookup
 from ..tools.port_scanner import scan_ports, get_common_ports, format_scan_results
 from ..tools.ssh_terminal import SSHConnection
 from ..tools.smtp_tester import send_test_email, get_common_smtp_ports, format_smtp_test_results
+from ..tools.mail_header_analyzer import parse_email_headers, format_header_analysis, get_example_header
 
 
 class NetworkToolkitApp(ctk.CTk):
@@ -65,6 +66,9 @@ class NetworkToolkitApp(ctk.CTk):
 
         self.smtp_tester_button = ctk.CTkButton(self.sidebar_frame, text="SMTP Tester", command=self.show_smtp_tester_tool)
         self.smtp_tester_button.grid(row=8, column=0, padx=20, pady=10)
+
+        self.mail_header_button = ctk.CTkButton(self.sidebar_frame, text="Header Analyzer", command=self.show_mail_header_tool)
+        self.mail_header_button.grid(row=9, column=0, padx=20, pady=10)
         
         # Main content frame
         self.content_frame = ctk.CTkFrame(self)
@@ -1205,3 +1209,101 @@ class NetworkToolkitApp(ctk.CTk):
             status_text = "Success" if result.success else "Failed"
             self.smtp_status_label.configure(text=status_text)
             self.logger.info(f"SMTP test completed: {status_text}")
+
+    def show_mail_header_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="Email Header Analyzer", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create control frame
+        control_frame = ctk.CTkFrame(self.content_frame)
+        control_frame.grid(row=1, column=0, padx=20, pady=(0, 20), sticky="new")
+        control_frame.grid_columnconfigure(0, weight=1)
+        
+        # Instructions
+        instructions = (
+            "Paste email headers below to analyze them. Email headers contain information about the "
+            "delivery path, authentication results, and other metadata that can help troubleshoot "
+            "email delivery issues or identify potential phishing attempts."
+        )
+        
+        instructions_label = ctk.CTkLabel(control_frame, text=instructions, wraplength=800, justify="left")
+        instructions_label.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="w")
+        
+        # Input area for headers
+        input_frame = ctk.CTkFrame(control_frame)
+        input_frame.grid(row=1, column=0, padx=20, pady=(10, 10), sticky="new")
+        input_frame.grid_columnconfigure(0, weight=1)
+        
+        # Header input area
+        self.header_input = ctk.CTkTextbox(input_frame, height=200, font=("Courier", 12))
+        self.header_input.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        # Buttons
+        button_frame = ctk.CTkFrame(control_frame, fg_color="transparent")
+        button_frame.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="ew")
+        
+        self.analyze_button = ctk.CTkButton(button_frame, text="Analyze Headers", 
+                                          command=self.analyze_headers, width=150)
+        self.analyze_button.grid(row=0, column=0, padx=(0, 10), pady=10, sticky="w")
+        
+        self.load_example_button = ctk.CTkButton(button_frame, text="Load Example", 
+                                              command=self.load_example_headers, width=150)
+        self.load_example_button.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+        
+        self.clear_button = ctk.CTkButton(button_frame, text="Clear", 
+                                        command=self.clear_headers, width=150)
+        self.clear_button.grid(row=0, column=2, padx=10, pady=10, sticky="w")
+        
+        # Results display
+        results_label = ctk.CTkLabel(self.content_frame, text="Analysis Results:", font=ctk.CTkFont(weight="bold"))
+        results_label.grid(row=2, column=0, padx=20, pady=(0, 5), sticky="w")
+        
+        self.results_textbox = ctk.CTkTextbox(self.content_frame, height=300, font=("Courier", 12))
+        self.results_textbox.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(3, weight=1)
+        
+        # Initial message
+        self.results_textbox.insert("1.0", "Paste email headers and click 'Analyze Headers' to begin.\n"
+                                  "You can also click 'Load Example' to see a demonstration.")
+
+    def analyze_headers(self):
+        """Analyze the email headers from the input area"""
+        header_text = self.header_input.get("1.0", "end-1c")
+        
+        if not header_text.strip():
+            self.results_textbox.delete("1.0", "end")
+            self.results_textbox.insert("end", "Error: Please enter email headers to analyze")
+            return
+        
+        # Log the action
+        self.logger.info("Starting email header analysis")
+        
+        # Analyze headers
+        result = parse_email_headers(header_text)
+        
+        # Format and display results
+        self.results_textbox.delete("1.0", "end")
+        formatted_results = format_header_analysis(result)
+        self.results_textbox.insert("end", formatted_results)
+        
+        self.logger.info("Email header analysis completed")
+
+    def load_example_headers(self):
+        """Load example email headers"""
+        self.header_input.delete("1.0", "end")
+        self.header_input.insert("end", get_example_header())
+        
+        # Automatically analyze the example
+        self.analyze_headers()
+
+    def clear_headers(self):
+        """Clear the header input area"""
+        self.header_input.delete("1.0", "end")
+        self.results_textbox.delete("1.0", "end")
+        self.results_textbox.insert("1.0", "Paste email headers and click 'Analyze Headers' to begin.\n"
+                                  "You can also click 'Load Example' to see a demonstration.")
