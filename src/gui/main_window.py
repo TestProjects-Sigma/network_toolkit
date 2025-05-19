@@ -10,7 +10,10 @@ from ..tools.port_scanner import scan_ports, get_common_ports, format_scan_resul
 from ..tools.ssh_terminal import SSHConnection
 from ..tools.smtp_tester import send_test_email, get_common_smtp_ports, format_smtp_test_results
 from ..tools.mail_header_analyzer import parse_email_headers, format_header_analysis, get_example_header
-
+from ..tools.packet_analyzer import (
+    PacketCaptureSession, get_available_interfaces, 
+    format_packet, format_capture_stats, SCAPY_AVAILABLE
+)
 
 class NetworkToolkitApp(ctk.CTk):
     def __init__(self):
@@ -30,6 +33,9 @@ class NetworkToolkitApp(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=5)
         self.grid_rowconfigure(0, weight=1)
+
+        # Define standard button width for all sidebar buttons
+        sidebar_button_width = 200  # Adjust as needed for your UI
         
         # Create sidebar frame with tools
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
@@ -41,34 +47,36 @@ class NetworkToolkitApp(ctk.CTk):
         self.app_title.grid(row=0, column=0, padx=20, pady=(20, 10))
         
         # Tools buttons
-        self.ping_button = ctk.CTkButton(self.sidebar_frame, text="Ping", command=self.show_ping_tool)
+        self.ping_button = ctk.CTkButton(self.sidebar_frame, text="Ping", command=self.show_ping_tool, width=sidebar_button_width)
         self.ping_button.grid(row=1, column=0, padx=20, pady=10)
         
         # Enable the DNS button (change state to normal)
-        self.dns_button = ctk.CTkButton(self.sidebar_frame, text="DNS Lookup", command=self.show_dns_tool)
+        self.dns_button = ctk.CTkButton(self.sidebar_frame, text="DNS Lookup", command=self.show_dns_tool, width=sidebar_button_width)
         self.dns_button.grid(row=2, column=0, padx=20, pady=10)
         
-        self.tracert_button = ctk.CTkButton(self.sidebar_frame, text="Traceroute", command=self.show_traceroute_tool)
+        self.tracert_button = ctk.CTkButton(self.sidebar_frame, text="Traceroute", command=self.show_traceroute_tool, width=sidebar_button_width)
         self.tracert_button.grid(row=3, column=0, padx=20, pady=10)
-
         
-        self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", command=self.show_speedtest_tool)
+        self.speedtest_button = ctk.CTkButton(self.sidebar_frame, text="Speed Test", command=self.show_speedtest_tool, width=sidebar_button_width)
         self.speedtest_button.grid(row=4, column=0, padx=20, pady=10)
         
-        self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", command=self.show_whois_tool)
+        self.whois_button = ctk.CTkButton(self.sidebar_frame, text="WHOIS", command=self.show_whois_tool, width=sidebar_button_width)
         self.whois_button.grid(row=5, column=0, padx=20, pady=10)
 
-        self.port_scan_button = ctk.CTkButton(self.sidebar_frame, text="Port Scanner", command=self.show_port_scanner_tool)
+        self.port_scan_button = ctk.CTkButton(self.sidebar_frame, text="Port Scanner", command=self.show_port_scanner_tool, width=sidebar_button_width)
         self.port_scan_button.grid(row=6, column=0, padx=20, pady=10)
 
-        self.ssh_terminal_button = ctk.CTkButton(self.sidebar_frame, text="SSH Terminal", command=self.show_ssh_terminal_tool)
+        self.ssh_terminal_button = ctk.CTkButton(self.sidebar_frame, text="SSH Terminal", command=self.show_ssh_terminal_tool, width=sidebar_button_width)
         self.ssh_terminal_button.grid(row=7, column=0, padx=20, pady=10)
 
-        self.smtp_tester_button = ctk.CTkButton(self.sidebar_frame, text="SMTP Tester", command=self.show_smtp_tester_tool)
+        self.smtp_tester_button = ctk.CTkButton(self.sidebar_frame, text="SMTP Tester", command=self.show_smtp_tester_tool, width=sidebar_button_width)
         self.smtp_tester_button.grid(row=8, column=0, padx=20, pady=10)
 
-        self.mail_header_button = ctk.CTkButton(self.sidebar_frame, text="Header Analyzer", command=self.show_mail_header_tool)
+        self.mail_header_button = ctk.CTkButton(self.sidebar_frame, text="Header Analyzer", command=self.show_mail_header_tool, width=sidebar_button_width)
         self.mail_header_button.grid(row=9, column=0, padx=20, pady=10)
+
+        self.packet_analyzer_button = ctk.CTkButton(self.sidebar_frame, text="Packet Analyzer", command=self.show_packet_analyzer_tool,  state="normal" if SCAPY_AVAILABLE else "disabled", width=sidebar_button_width)
+        self.packet_analyzer_button.grid(row=10, column=0, padx=20, pady=10)
         
         # Main content frame
         self.content_frame = ctk.CTkFrame(self)
@@ -1307,3 +1315,220 @@ class NetworkToolkitApp(ctk.CTk):
         self.results_textbox.delete("1.0", "end")
         self.results_textbox.insert("1.0", "Paste email headers and click 'Analyze Headers' to begin.\n"
                                   "You can also click 'Load Example' to see a demonstration.")
+
+    def show_packet_analyzer_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        if not SCAPY_AVAILABLE:
+            # Show error message when scapy is not available
+            title = ctk.CTkLabel(self.content_frame, text="Network Packet Analyzer", 
+                              font=ctk.CTkFont(size=18, weight="bold"))
+            title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+            
+            error_frame = ctk.CTkFrame(self.content_frame)
+            error_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
+            
+            error_msg = ("The Scapy library is required for packet analysis but is not installed.\n"
+                        "Please install it with: pip install scapy")
+            
+            error_label = ctk.CTkLabel(error_frame, text=error_msg, text_color=("red", "red"))
+            error_label.grid(row=0, column=0, padx=20, pady=20)
+            
+            return
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="Network Packet Analyzer", 
+                          font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create control frame
+        control_frame = ctk.CTkFrame(self.content_frame)
+        control_frame.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="new")
+        control_frame.grid_columnconfigure(1, weight=1)
+        
+        # Warning message
+        warning_text = ("WARNING: Packet capturing requires administrative/root privileges and may be "
+                       "against network policies in some organizations. Only capture packets on "
+                       "networks you own or have permission to monitor.")
+        
+        warning_label = ctk.CTkLabel(control_frame, text=warning_text, 
+                                   text_color=("red", "red"), wraplength=800)
+        warning_label.grid(row=0, column=0, columnspan=2, padx=20, pady=(10, 10), sticky="w")
+        
+        # Interface selection
+        interface_label = ctk.CTkLabel(control_frame, text="Interface:")
+        interface_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        # Get available interfaces
+        interfaces = get_available_interfaces()
+        interfaces.insert(0, "All Interfaces")
+        
+        self.interface_dropdown = ctk.CTkOptionMenu(
+            control_frame,
+            values=interfaces,
+            width=300
+        )
+        self.interface_dropdown.grid(row=1, column=1, padx=10, pady=10, sticky="w")
+        self.interface_dropdown.set(interfaces[0])
+        
+        # Filter string
+        filter_label = ctk.CTkLabel(control_frame, text="Filter:")
+        filter_label.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        
+        self.filter_entry = ctk.CTkEntry(control_frame, width=300)
+        self.filter_entry.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Filter examples
+        filter_examples_label = ctk.CTkLabel(control_frame, 
+                                          text="Examples: 'tcp port 80', 'host 192.168.1.1', 'icmp'", 
+                                          font=("", 12))
+        filter_examples_label.grid(row=3, column=1, padx=10, pady=(0, 10), sticky="w")
+        
+        # Packet limit
+        limit_label = ctk.CTkLabel(control_frame, text="Packet Limit:")
+        limit_label.grid(row=4, column=0, padx=10, pady=10, sticky="w")
+        
+        self.limit_entry = ctk.CTkEntry(control_frame, width=100)
+        self.limit_entry.grid(row=4, column=1, padx=10, pady=10, sticky="w")
+        self.limit_entry.insert(0, "1000")
+        
+        # Capture control buttons
+        button_frame = ctk.CTkFrame(control_frame)
+        button_frame.grid(row=5, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        
+        self.start_capture_button = ctk.CTkButton(button_frame, text="Start Capture", 
+                                               command=self.start_packet_capture, width=150)
+        self.start_capture_button.grid(row=0, column=0, padx=(10, 5), pady=10, sticky="w")
+        
+        self.stop_capture_button = ctk.CTkButton(button_frame, text="Stop Capture", 
+                                              command=self.stop_packet_capture, width=150,
+                                              state="disabled")
+        self.stop_capture_button.grid(row=0, column=1, padx=5, pady=10, sticky="w")
+        
+        self.clear_button = ctk.CTkButton(button_frame, text="Clear", 
+                                        command=self.clear_packet_capture, width=150)
+        self.clear_button.grid(row=0, column=2, padx=5, pady=10, sticky="w")
+        
+        # Stats label
+        self.stats_label = ctk.CTkLabel(button_frame, text="Ready")
+        self.stats_label.grid(row=0, column=3, padx=(20, 10), pady=10, sticky="w")
+        
+        # Create notebook for packets and statistics
+        self.packet_notebook = ctk.CTkTabview(self.content_frame)
+        self.packet_notebook.grid(row=2, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(2, weight=1)
+        
+        # Create tabs
+        packets_tab = self.packet_notebook.add("Packets")
+        stats_tab = self.packet_notebook.add("Statistics")
+        
+        # Configure tab grid
+        packets_tab.grid_columnconfigure(0, weight=1)
+        packets_tab.grid_rowconfigure(0, weight=1)
+        stats_tab.grid_columnconfigure(0, weight=1)
+        stats_tab.grid_rowconfigure(0, weight=1)
+        
+        # Add packet list to packets tab
+        self.packet_listbox = ctk.CTkTextbox(packets_tab, font=("Courier", 12))
+        self.packet_listbox.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        # Add statistics display to stats tab
+        self.stats_textbox = ctk.CTkTextbox(stats_tab, font=("Courier", 12))
+        self.stats_textbox.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        
+        # Set up packet capture session
+        self.packet_session = PacketCaptureSession()
+        
+        # Set active tab
+        self.packet_notebook.set("Packets")
+        
+        # Initial messages
+        self.packet_listbox.insert("1.0", "Ready to capture packets. Click 'Start Capture' to begin.\n")
+        self.stats_textbox.insert("1.0", "Capture statistics will appear here.\n")
+
+    def start_packet_capture(self):
+        """Start the packet capture."""
+        # Get interface
+        interface = self.interface_dropdown.get()
+        if interface == "All Interfaces":
+            interface = None
+        
+        # Get filter string
+        filter_str = self.filter_entry.get()
+        if not filter_str.strip():
+            filter_str = None
+        
+        # Get packet limit
+        try:
+            max_packets = int(self.limit_entry.get())
+            if max_packets < 1:
+                max_packets = 1000
+                self.limit_entry.delete(0, "end")
+                self.limit_entry.insert(0, "1000")
+        except ValueError:
+            max_packets = 1000
+            self.limit_entry.delete(0, "end")
+            self.limit_entry.insert(0, "1000")
+        
+        # Clear previous capture
+        self.clear_packet_capture()
+        
+        # Start the capture
+        self.packet_listbox.insert("end", f"Starting packet capture on {interface or 'all interfaces'}"
+                                 f"{' with filter: ' + filter_str if filter_str else ''}...\n")
+        
+        success = self.packet_session.start_capture(
+            interface=interface,
+            filter_str=filter_str,
+            max_packets=max_packets,
+            packet_callback=self.update_packet_list,
+            stats_callback=self.update_capture_stats
+        )
+        
+        if success:
+            self.start_capture_button.configure(state="disabled")
+            self.stop_capture_button.configure(state="normal")
+            self.stats_label.configure(text="Capturing...")
+            self.logger.info(f"Started packet capture on {interface or 'all interfaces'}")
+        else:
+            self.packet_listbox.insert("end", f"Error starting capture: {self.packet_session.error}\n")
+            self.logger.error(f"Error starting packet capture: {self.packet_session.error}")
+
+    def stop_packet_capture(self):
+        """Stop the packet capture."""
+        if self.packet_session.running:
+            self.packet_session.stop_capture()
+            self.packet_listbox.insert("end", "Capture stopped.\n")
+            self.stats_label.configure(text="Stopped")
+            self.start_capture_button.configure(state="normal")
+            self.stop_capture_button.configure(state="disabled")
+            self.logger.info("Stopped packet capture")
+
+    def clear_packet_capture(self):
+        """Clear the packet capture display."""
+        self.packet_listbox.delete("1.0", "end")
+        self.stats_textbox.delete("1.0", "end")
+        self.packet_listbox.insert("1.0", "Ready to capture packets. Click 'Start Capture' to begin.\n")
+        self.stats_textbox.insert("1.0", "Capture statistics will appear here.\n")
+        self.stats_label.configure(text="Ready")
+
+    def update_packet_list(self, packet, session):
+        """Update the packet list with a new packet."""
+        packet_str = format_packet(packet, session.packet_count)
+        self.packet_listbox.configure(state="normal")
+        self.packet_listbox.insert("end", f"\n{packet_str}\n{'-' * 40}\n")
+        self.packet_listbox.see("end")
+        self.packet_listbox.configure(state="disabled")
+        
+        # Update packet count in stats label
+        self.stats_label.configure(text=f"Captured: {session.packet_count}")
+
+    def update_capture_stats(self, session):
+        """Update the statistics display."""
+        stats_str = format_capture_stats(session)
+        self.stats_textbox.configure(state="normal")
+        self.stats_textbox.delete("1.0", "end")
+        self.stats_textbox.insert("1.0", stats_str)
+        self.stats_textbox.configure(state="disabled")

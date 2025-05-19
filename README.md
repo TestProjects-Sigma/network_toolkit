@@ -18,6 +18,7 @@ Currently implemented:
 - **SSH Terminal**: Connect to remote servers via SSH
 - **SMTP Tester**: Test email delivery and SMTP server configurations
 - **Mail Header Analyzer**: Analyze email headers for authentication and routing information
+- **Network Packet Analyzer**: Capture and analyze network traffic in real-time
 
 ## Installation
 
@@ -25,6 +26,7 @@ Currently implemented:
 
 - Python 3.8+ installed
 - Git (optional, for cloning the repository)
+- Administrator/root privileges (for packet capture functionality)
 
 ### Setting up a Virtual Environment
 
@@ -67,7 +69,7 @@ pip install -r requirements.txt
 If you prefer not to use a virtual environment, you can install dependencies directly:
 
 ```bash
-pip install customtkinter==5.2.1 ping3==4.0.3 dnspython==2.4.0 speedtest-cli==2.1.3 python-whois==0.8.0
+pip install customtkinter==5.2.1 ping3==4.0.3 dnspython==2.4.0 speedtest-cli==2.1.3 python-whois==0.8.0 paramiko==3.3.1 scapy==2.5.0
 ```
 
 ## Running the Application
@@ -96,6 +98,14 @@ network_toolkit/
     │   ├── __init__.py
     │   ├── ping.py             # Ping functionality
     │   ├── dns_lookup.py       # DNS lookup functionality
+    │   ├── traceroute.py       # Traceroute functionality
+    │   ├── speedtest.py        # Speed test functionality
+    │   ├── whois_lookup.py     # WHOIS lookup functionality
+    │   ├── port_scanner.py     # Port scanning functionality
+    │   ├── ssh_terminal.py     # SSH terminal functionality
+    │   ├── smtp_tester.py      # SMTP testing functionality
+    │   ├── mail_header_analyzer.py # Email header analysis
+    │   └── packet_analyzer.py  # Network packet analysis── dns_lookup.py       # DNS lookup functionality
     │   ├── traceroute.py       # Traceroute functionality
     │   ├── speedtest.py        # Speed test functionality
     │   ├── whois_lookup.py     # WHOIS lookup functionality
@@ -186,6 +196,16 @@ network_toolkit/
    - Delivery path and timing
    - Security assessment
    - Spam likelihood
+
+### Network Packet Analyzer Tool
+
+1. Click on the "Packet Analyzer" button in the sidebar
+2. Select a network interface (or use "All Interfaces")
+3. Optionally enter a filter expression (e.g., "tcp port 80" for HTTP traffic)
+4. Set a packet capture limit (default: 1000)
+5. Click "Start Capture" to begin monitoring
+6. View captured packets in the "Packets" tab and statistics in the "Statistics" tab
+7. Click "Stop Capture" when finished
 
 ## Development
 
