@@ -15,6 +15,8 @@ Currently implemented:
 - **Speed Test**: Measure network download and upload speeds and latency
 - **WHOIS Lookup**: Retrieve domain registration information
 - **Port Scanner**: Scan for open ports on a host
+- **SSH Terminal**: Connect to remote servers via SSH
+- **SMTP Tester**: Test email delivery and SMTP server configurations
 
 ## Installation
 
@@ -96,7 +98,9 @@ network_toolkit/
     │   ├── traceroute.py       # Traceroute functionality
     │   ├── speedtest.py        # Speed test functionality
     │   ├── whois_lookup.py     # WHOIS lookup functionality
-    │   └── port_scanner.py     # Port scanning functionality
+    │   ├── port_scanner.py     # Port scanning functionality
+    │   ├── ssh_terminal.py     # SSH terminal functionality
+    │   └── smtp_tester.py      # SMTP testing functionality
     └── utils/                  # Shared utilities
         ├── __init__.py
         └── logger.py           # Logging functionality
@@ -151,6 +155,24 @@ network_toolkit/
 4. Optionally enter custom ports in the field (comma-separated)
 5. Click "Start Scan"
 6. View the scan results showing open ports and services
+
+### SSH Terminal Tool
+
+1. Click on the "SSH Terminal" button in the sidebar
+2. Enter the host, port, username, and password (or select a key file)
+3. Click "Connect"
+4. Once connected, use the terminal to send commands
+5. View the command output in the terminal area
+6. Click "Disconnect" when finished
+
+### SMTP Tester Tool
+
+1. Click on the "SMTP Tester" button in the sidebar
+2. Enter the SMTP server details in the Connection tab
+3. Configure the email message in the Message tab
+4. Set security and authentication options in the Security tab
+5. Click "Send Test Email"
+6. View the detailed test results including connection logs
 
 ## Development
 

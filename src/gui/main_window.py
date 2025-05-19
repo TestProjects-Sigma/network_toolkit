@@ -7,6 +7,8 @@ from ..tools.traceroute import traceroute
 from ..tools.speedtest import run_speed_test, format_speed_test_results
 from ..tools.whois_lookup import whois_lookup
 from ..tools.port_scanner import scan_ports, get_common_ports, format_scan_results
+from ..tools.ssh_terminal import SSHConnection
+from ..tools.smtp_tester import send_test_email, get_common_smtp_ports, format_smtp_test_results
 
 
 class NetworkToolkitApp(ctk.CTk):
@@ -57,6 +59,12 @@ class NetworkToolkitApp(ctk.CTk):
 
         self.port_scan_button = ctk.CTkButton(self.sidebar_frame, text="Port Scanner", command=self.show_port_scanner_tool)
         self.port_scan_button.grid(row=6, column=0, padx=20, pady=10)
+
+        self.ssh_terminal_button = ctk.CTkButton(self.sidebar_frame, text="SSH Terminal", command=self.show_ssh_terminal_tool)
+        self.ssh_terminal_button.grid(row=7, column=0, padx=20, pady=10)
+
+        self.smtp_tester_button = ctk.CTkButton(self.sidebar_frame, text="SMTP Tester", command=self.show_smtp_tester_tool)
+        self.smtp_tester_button.grid(row=8, column=0, padx=20, pady=10)
         
         # Main content frame
         self.content_frame = ctk.CTkFrame(self)
@@ -674,3 +682,526 @@ class NetworkToolkitApp(ctk.CTk):
             
             # Re-enable the button
             self.port_scan_button.configure(state="normal", text="Start Scan")
+
+    def show_ssh_terminal_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="SSH Terminal", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create connection frame
+        conn_frame = ctk.CTkFrame(self.content_frame)
+        conn_frame.grid(row=1, column=0, padx=20, pady=(10, 20), sticky="new")
+        conn_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)  # Equal weight for 4 columns
+        
+        # Host input
+        host_label = ctk.CTkLabel(conn_frame, text="Host:")
+        host_label.grid(row=0, column=0, padx=10, pady=10, sticky="e")
+        
+        self.ssh_host_entry = ctk.CTkEntry(conn_frame)
+        self.ssh_host_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Port input
+        port_label = ctk.CTkLabel(conn_frame, text="Port:")
+        port_label.grid(row=0, column=2, padx=10, pady=10, sticky="e")
+        
+        self.ssh_port_entry = ctk.CTkEntry(conn_frame, width=80)
+        self.ssh_port_entry.grid(row=0, column=3, padx=10, pady=10, sticky="w")
+        self.ssh_port_entry.insert(0, "22")
+        
+        # Username input
+        username_label = ctk.CTkLabel(conn_frame, text="Username:")
+        username_label.grid(row=1, column=0, padx=10, pady=10, sticky="e")
+        
+        self.ssh_username_entry = ctk.CTkEntry(conn_frame)
+        self.ssh_username_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Password input
+        password_label = ctk.CTkLabel(conn_frame, text="Password:")
+        password_label.grid(row=1, column=2, padx=10, pady=10, sticky="e")
+        
+        self.ssh_password_entry = ctk.CTkEntry(conn_frame, show="*")
+        self.ssh_password_entry.grid(row=1, column=3, padx=10, pady=10, sticky="ew")
+        
+        # Auth type selection (password vs key file)
+        auth_label = ctk.CTkLabel(conn_frame, text="Authentication:")
+        auth_label.grid(row=2, column=0, padx=10, pady=10, sticky="e")
+        
+        self.ssh_auth_var = ctk.StringVar(value="password")
+        
+        auth_frame = ctk.CTkFrame(conn_frame, fg_color="transparent")
+        auth_frame.grid(row=2, column=1, columnspan=3, padx=10, pady=10, sticky="w")
+        
+        self.password_radio = ctk.CTkRadioButton(auth_frame, text="Password", 
+                                             variable=self.ssh_auth_var, value="password",
+                                             command=self.toggle_ssh_auth_method)
+        self.password_radio.grid(row=0, column=0, padx=(0, 20))
+        
+        self.key_radio = ctk.CTkRadioButton(auth_frame, text="Key File", 
+                                          variable=self.ssh_auth_var, value="key",
+                                          command=self.toggle_ssh_auth_method)
+        self.key_radio.grid(row=0, column=1)
+        
+        # Key file selector
+        self.key_frame = ctk.CTkFrame(conn_frame, fg_color="transparent")
+        self.key_frame.grid(row=3, column=0, columnspan=4, padx=10, pady=(0, 10), sticky="ew")
+        self.key_frame.grid_columnconfigure(1, weight=1)
+        
+        key_file_label = ctk.CTkLabel(self.key_frame, text="Key File:")
+        key_file_label.grid(row=0, column=0, padx=10, pady=10, sticky="e")
+        
+        self.ssh_key_entry = ctk.CTkEntry(self.key_frame)
+        self.ssh_key_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        self.ssh_key_button = ctk.CTkButton(self.key_frame, text="Browse", command=self.browse_key_file, width=80)
+        self.ssh_key_button.grid(row=0, column=2, padx=10, pady=10)
+        
+        # Initially hide key file selector
+        self.key_frame.grid_remove()
+        
+        # Connect/Disconnect buttons
+        button_frame = ctk.CTkFrame(conn_frame)
+        button_frame.grid(row=4, column=0, columnspan=4, padx=10, pady=(10, 10), sticky="ew")
+        button_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        # Set up the connection attribute and buttons
+        self.ssh_connection = SSHConnection()
+        
+        self.ssh_connect_button = ctk.CTkButton(button_frame, text="Connect", 
+                                             command=self.connect_ssh, width=120)
+        self.ssh_connect_button.grid(row=0, column=0, padx=10, pady=10)
+        
+        self.ssh_disconnect_button = ctk.CTkButton(button_frame, text="Disconnect", 
+                                                command=self.disconnect_ssh, width=120,
+                                                state="disabled")
+        self.ssh_disconnect_button.grid(row=0, column=1, padx=10, pady=10)
+        
+        # Terminal output area
+        terminal_frame = ctk.CTkFrame(self.content_frame)
+        terminal_frame.grid(row=2, column=0, padx=20, pady=(0, 10), sticky="nsew")
+        terminal_frame.grid_columnconfigure(0, weight=1)
+        terminal_frame.grid_rowconfigure(0, weight=1)
+        
+        self.terminal_textbox = ctk.CTkTextbox(terminal_frame, height=300, font=("Courier", 12))
+        self.terminal_textbox.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.terminal_textbox.insert("1.0", "SSH Terminal Ready. Connect to a server to begin.\n")
+        self.terminal_textbox.configure(state="disabled")  # Make read-only initially
+        
+        # Command input area
+        command_frame = ctk.CTkFrame(self.content_frame)
+        command_frame.grid(row=3, column=0, padx=20, pady=(0, 20), sticky="ew")
+        command_frame.grid_columnconfigure(0, weight=1)
+        
+        self.command_entry = ctk.CTkEntry(command_frame, font=("Courier", 12))
+        self.command_entry.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        self.command_entry.configure(state="disabled")  # Disable until connected
+        self.command_entry.bind("<Return>", self.send_command)
+        
+        self.send_button = ctk.CTkButton(command_frame, text="Send", 
+                                       command=lambda: self.send_command(None), width=80,
+                                       state="disabled")
+        self.send_button.grid(row=0, column=1, padx=10, pady=10)
+        
+        # Configure content frame to expand properly
+        self.content_frame.grid_rowconfigure(2, weight=1)
+
+    def toggle_ssh_auth_method(self):
+        """Toggle between password and key file authentication methods."""
+        if self.ssh_auth_var.get() == "password":
+            self.key_frame.grid_remove()
+            self.ssh_password_entry.configure(state="normal")
+        else:
+            self.key_frame.grid()
+            self.ssh_password_entry.configure(state="disabled")
+
+    def browse_key_file(self):
+        """Open a file dialog to select an SSH key file."""
+        from tkinter import filedialog
+        
+        key_file = filedialog.askopenfilename(
+            title="Select SSH Key File",
+            filetypes=(("All Files", "*.*"), ("PEM Files", "*.pem"), ("PPK Files", "*.ppk"))
+        )
+        
+        if key_file:
+            self.ssh_key_entry.delete(0, "end")
+            self.ssh_key_entry.insert(0, key_file)
+
+    def append_to_terminal(self, data):
+        """Append data to the terminal output."""
+        self.terminal_textbox.configure(state="normal")
+        self.terminal_textbox.insert("end", data)
+        self.terminal_textbox.see("end")  # Scroll to the end
+        self.terminal_textbox.configure(state="disabled")
+
+    def connect_ssh(self):
+        """Connect to the SSH server."""
+        host = self.ssh_host_entry.get()
+        
+        try:
+            port = int(self.ssh_port_entry.get())
+        except ValueError:
+            port = 22
+            self.ssh_port_entry.delete(0, "end")
+            self.ssh_port_entry.insert(0, "22")
+        
+        username = self.ssh_username_entry.get()
+        
+        # Validate inputs
+        if not host or not username:
+            self.append_to_terminal("Error: Host and username are required\n")
+            return
+        
+        # Set up connection parameters based on authentication method
+        password = None
+        key_filename = None
+        
+        if self.ssh_auth_var.get() == "password":
+            password = self.ssh_password_entry.get()
+            if not password:
+                self.append_to_terminal("Error: Password is required\n")
+                return
+        else:
+            key_filename = self.ssh_key_entry.get()
+            if not key_filename:
+                self.append_to_terminal("Error: Key file is required\n")
+                return
+        
+        # Clear terminal and update UI
+        self.terminal_textbox.configure(state="normal")
+        self.terminal_textbox.delete("1.0", "end")
+        self.terminal_textbox.insert("1.0", f"Connecting to {host}:{port} as {username}...\n")
+        self.terminal_textbox.configure(state="disabled")
+        
+        self.ssh_connect_button.configure(state="disabled")
+        
+        # Set the output callback
+        self.ssh_connection.output_callback = self.append_to_terminal
+        
+        # Connect in a separate thread to avoid freezing the UI
+        def connect_thread():
+            success = self.ssh_connection.connect(host, port, username, password, key_filename)
+            
+            # Update UI in the main thread
+            self.after(0, lambda: self._update_after_connect(success))
+        
+        threading.Thread(target=connect_thread, daemon=True).start()
+
+    def _update_after_connect(self, success):
+        """Update UI after connection attempt."""
+        if success:
+            self.ssh_disconnect_button.configure(state="normal")
+            self.command_entry.configure(state="normal")
+            self.send_button.configure(state="normal")
+            self.append_to_terminal("Connected. You can now send commands.\n")
+        else:
+            self.ssh_connect_button.configure(state="normal")
+            self.append_to_terminal("Connection failed.\n")
+
+    def disconnect_ssh(self):
+        """Disconnect from the SSH server."""
+        if self.ssh_connection.connected:
+            self.ssh_connection.disconnect()
+            
+            # Update UI
+            self.ssh_connect_button.configure(state="normal")
+            self.ssh_disconnect_button.configure(state="disabled")
+            self.command_entry.configure(state="disabled")
+            self.send_button.configure(state="disabled")
+            
+            self.append_to_terminal("Disconnected from server.\n")
+
+    def send_command(self, event=None):
+        """Send a command to the SSH server."""
+        if not self.ssh_connection.connected:
+            return
+        
+        command = self.command_entry.get()
+        if not command:
+            return
+        
+        # Send the command
+        self.ssh_connection.send_command(command)
+        
+        # Clear the command entry
+        self.command_entry.delete(0, "end")
+
+    def show_smtp_tester_tool(self):
+        # Clear content frame
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
+        
+        # Add tool title
+        title = ctk.CTkLabel(self.content_frame, text="SMTP Tester", font=ctk.CTkFont(size=18, weight="bold"))
+        title.grid(row=0, column=0, padx=20, pady=(20, 15), sticky="w")
+        
+        # Create tabview for different sections
+        tabview = ctk.CTkTabview(self.content_frame)
+        tabview.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="new")
+        
+        # Create tabs
+        connection_tab = tabview.add("Connection")
+        message_tab = tabview.add("Message")
+        security_tab = tabview.add("Security")
+        
+        # Configure tab grid
+        for tab in [connection_tab, message_tab, security_tab]:
+            tab.grid_columnconfigure(1, weight=1)
+        
+        # ----- Connection Tab -----
+        # Server input
+        server_label = ctk.CTkLabel(connection_tab, text="SMTP Server:")
+        server_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_server_entry = ctk.CTkEntry(connection_tab, width=300)
+        self.smtp_server_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Port input with dropdown
+        port_label = ctk.CTkLabel(connection_tab, text="Port:")
+        port_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        port_frame = ctk.CTkFrame(connection_tab, fg_color="transparent")
+        port_frame.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        port_frame.grid_columnconfigure(1, weight=1)
+        
+        self.smtp_port_entry = ctk.CTkEntry(port_frame, width=80)
+        self.smtp_port_entry.grid(row=0, column=0, padx=(0, 10), sticky="w")
+        self.smtp_port_entry.insert(0, "587")  # Default port for STARTTLS
+        
+        # Add port selection dropdown
+        common_ports = get_common_smtp_ports()
+        port_values = [f"{port} - {desc}" for port, desc in common_ports]
+        
+        self.port_dropdown = ctk.CTkOptionMenu(
+            port_frame,
+            values=port_values,
+            command=self.on_port_selected
+        )
+        self.port_dropdown.grid(row=0, column=1, sticky="w")
+        self.port_dropdown.set("Select common port")
+        
+        # Timeout input
+        timeout_label = ctk.CTkLabel(connection_tab, text="Timeout (seconds):")
+        timeout_label.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_timeout_entry = ctk.CTkEntry(connection_tab, width=80)
+        self.smtp_timeout_entry.grid(row=2, column=1, padx=10, pady=10, sticky="w")
+        self.smtp_timeout_entry.insert(0, "30")
+        
+        # ----- Message Tab -----
+        # From address
+        from_label = ctk.CTkLabel(message_tab, text="From:")
+        from_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_from_entry = ctk.CTkEntry(message_tab, width=300)
+        self.smtp_from_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        self.smtp_from_entry.insert(0, "sender@example.com")
+        
+        # To address
+        to_label = ctk.CTkLabel(message_tab, text="To:")
+        to_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_to_entry = ctk.CTkEntry(message_tab, width=300)
+        self.smtp_to_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        self.smtp_to_entry.insert(0, "recipient@example.com")
+        
+        # Subject
+        subject_label = ctk.CTkLabel(message_tab, text="Subject:")
+        subject_label.grid(row=2, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_subject_entry = ctk.CTkEntry(message_tab, width=300)
+        self.smtp_subject_entry.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
+        self.smtp_subject_entry.insert(0, "Test Email from Network Toolkit")
+        
+        # Message body
+        body_label = ctk.CTkLabel(message_tab, text="Message:")
+        body_label.grid(row=3, column=0, padx=10, pady=10, sticky="nw")
+        
+        self.smtp_body_text = ctk.CTkTextbox(message_tab, height=100, width=300)
+        self.smtp_body_text.grid(row=3, column=1, padx=10, pady=10, sticky="ew")
+        self.smtp_body_text.insert("1.0", "This is a test email sent from Network Toolkit SMTP Tester.")
+        
+        # ----- Security Tab -----
+        # TLS options
+        security_label = ctk.CTkLabel(security_tab, text="Connection Security:")
+        security_label.grid(row=0, column=0, padx=10, pady=(20, 10), sticky="w")
+        
+        self.security_var = ctk.StringVar(value="starttls")
+        
+        security_frame = ctk.CTkFrame(security_tab, fg_color="transparent")
+        security_frame.grid(row=0, column=1, padx=10, pady=(20, 10), sticky="w")
+        
+        self.none_radio = ctk.CTkRadioButton(security_frame, text="None (Plain Text)", 
+                                          variable=self.security_var, value="none")
+        self.none_radio.grid(row=0, column=0, padx=(0, 20), pady=5, sticky="w")
+        
+        self.starttls_radio = ctk.CTkRadioButton(security_frame, text="STARTTLS", 
+                                              variable=self.security_var, value="starttls")
+        self.starttls_radio.grid(row=1, column=0, padx=(0, 20), pady=5, sticky="w")
+        
+        self.ssl_radio = ctk.CTkRadioButton(security_frame, text="SSL/TLS", 
+                                          variable=self.security_var, value="ssl")
+        self.ssl_radio.grid(row=2, column=0, padx=(0, 20), pady=5, sticky="w")
+        
+        # Authentication
+        auth_label = ctk.CTkLabel(security_tab, text="Authentication:")
+        auth_label.grid(row=1, column=0, padx=10, pady=(20, 10), sticky="w")
+        
+        self.auth_var = ctk.BooleanVar(value=True)
+        
+        self.auth_checkbox = ctk.CTkCheckBox(security_tab, text="Use Authentication", 
+                                          variable=self.auth_var, onvalue=True, offvalue=False,
+                                          command=self.toggle_smtp_auth)
+        self.auth_checkbox.grid(row=1, column=1, padx=10, pady=(20, 10), sticky="w")
+        
+        # Username and password
+        self.auth_frame = ctk.CTkFrame(security_tab)
+        self.auth_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        self.auth_frame.grid_columnconfigure(1, weight=1)
+        
+        username_label = ctk.CTkLabel(self.auth_frame, text="Username:")
+        username_label.grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_username_entry = ctk.CTkEntry(self.auth_frame, width=300)
+        self.smtp_username_entry.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
+        
+        password_label = ctk.CTkLabel(self.auth_frame, text="Password:")
+        password_label.grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        
+        self.smtp_password_entry = ctk.CTkEntry(self.auth_frame, show="*", width=300)
+        self.smtp_password_entry.grid(row=1, column=1, padx=10, pady=10, sticky="ew")
+        
+        # Create test button frame
+        test_frame = ctk.CTkFrame(self.content_frame)
+        test_frame.grid(row=2, column=0, padx=20, pady=(10, 10), sticky="ew")
+        test_frame.grid_columnconfigure(1, weight=1)
+        
+        # Test button
+        self.smtp_test_button = ctk.CTkButton(test_frame, text="Send Test Email", 
+                                           command=self.execute_smtp_test, width=150)
+        self.smtp_test_button.grid(row=0, column=0, padx=(20, 10), pady=10, sticky="w")
+        
+        # Status label
+        self.smtp_status_label = ctk.CTkLabel(test_frame, text="Ready")
+        self.smtp_status_label.grid(row=0, column=1, padx=10, pady=10, sticky="w")
+        
+        # Output text area
+        output_label = ctk.CTkLabel(self.content_frame, text="Results:")
+        output_label.grid(row=3, column=0, padx=20, pady=(10, 5), sticky="w")
+        
+        self.output_textbox = ctk.CTkTextbox(self.content_frame, height=250)
+        self.output_textbox.grid(row=4, column=0, padx=20, pady=(0, 20), sticky="nsew")
+        self.content_frame.grid_rowconfigure(4, weight=1)
+        
+        # Initial message
+        self.output_textbox.insert("1.0", "Configure SMTP settings and click 'Send Test Email' to test.")
+        
+        # Set the active tab
+        tabview.set("Connection")
+
+    def on_port_selected(self, selection):
+        """Handle port selection from dropdown"""
+        if selection.startswith("Select"):
+            return
+        
+        port = selection.split(" - ")[0]
+        self.smtp_port_entry.delete(0, "end")
+        self.smtp_port_entry.insert(0, port)
+        
+        # Auto-select security method based on port
+        if port == "25":
+            self.security_var.set("none")
+        elif port == "465":
+            self.security_var.set("ssl")
+        elif port == "587" or port == "2525":
+            self.security_var.set("starttls")
+
+    def toggle_smtp_auth(self):
+        """Toggle SMTP authentication on/off"""
+        if self.auth_var.get():
+            self.auth_frame.grid()
+        else:
+            self.auth_frame.grid_remove()
+
+    def execute_smtp_test(self):
+        """Execute the SMTP test"""
+        # Get server details
+        server = self.smtp_server_entry.get()
+        if not server:
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("end", "Error: SMTP server is required")
+            return
+        
+        try:
+            port = int(self.smtp_port_entry.get())
+        except ValueError:
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("end", "Error: Invalid port number")
+            return
+        
+        # Get message details
+        from_address = self.smtp_from_entry.get()
+        to_address = self.smtp_to_entry.get()
+        subject = self.smtp_subject_entry.get()
+        body = self.smtp_body_text.get("1.0", "end-1c")
+        
+        if not from_address or not to_address:
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("end", "Error: From and To addresses are required")
+            return
+        
+        # Get security settings
+        security = self.security_var.get()
+        use_tls = security == "starttls"
+        use_ssl = security == "ssl"
+        
+        # Get authentication settings
+        use_auth = self.auth_var.get()
+        username = self.smtp_username_entry.get() if use_auth else None
+        password = self.smtp_password_entry.get() if use_auth else None
+        
+        if use_auth and (not username or not password):
+            self.output_textbox.delete("1.0", "end")
+            self.output_textbox.insert("end", "Error: Username and password are required for authentication")
+            return
+        
+        # Clear output and update UI
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", f"Testing SMTP connection to {server}:{port}...\n")
+        self.smtp_test_button.configure(state="disabled")
+        self.smtp_status_label.configure(text="Testing...")
+        
+        # Log the action
+        self.logger.info(f"Starting SMTP test to {server}:{port}")
+        
+        # Run the test
+        self.smtp_test_result = send_test_email(
+            server, port, 
+            from_address, to_address, 
+            subject, body,
+            use_tls, use_ssl,
+            username, password,
+            self.update_smtp_test_progress
+        )
+
+    def update_smtp_test_progress(self, result):
+        """Update the UI with current SMTP test progress"""
+        # Update status
+        self.smtp_status_label.configure(text=result.status)
+        
+        # Update results
+        self.output_textbox.delete("1.0", "end")
+        self.output_textbox.insert("end", format_smtp_test_results(result))
+        
+        # Scroll to the end
+        self.output_textbox.see("end")
+        
+        # If finished, re-enable the button
+        if result.finished:
+            self.smtp_test_button.configure(state="normal")
+            status_text = "Success" if result.success else "Failed"
+            self.smtp_status_label.configure(text=status_text)
+            self.logger.info(f"SMTP test completed: {status_text}")
