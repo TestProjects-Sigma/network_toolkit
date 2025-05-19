@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Cleanup script for Music Indexer project.
+Cleanup script for Network Toolkit project.
 Removes temporary files, caches, and logs before committing to GitHub.
 """
 import os
@@ -11,11 +11,10 @@ import sys
 
 def parse_args():
     """Parse command-line arguments."""
-    parser = argparse.ArgumentParser(description="Clean up temporary files in the Music Indexer project")
+    parser = argparse.ArgumentParser(description="Clean up temporary files in the Network Toolkit project")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be deleted without actually deleting")
     parser.add_argument("--keep-config", action="store_true", help="Keep config.ini file")
     parser.add_argument("--keep-logs", action="store_true", help="Keep log files")
-    parser.add_argument("--keep-cache", action="store_true", help="Keep cache files and database")
     return parser.parse_args()
 
 def get_project_root():
@@ -24,12 +23,12 @@ def get_project_root():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     # Check if we're in the project root
-    if os.path.exists(os.path.join(script_dir, "music_indexer")):
+    if os.path.exists(os.path.join(script_dir, "src")):
         return script_dir
     
     # Check if the parent directory is the project root
     parent_dir = os.path.dirname(script_dir)
-    if os.path.exists(os.path.join(parent_dir, "music_indexer")):
+    if os.path.exists(os.path.join(parent_dir, "src")):
         return parent_dir
     
     print("Error: Could not determine project root directory.")
@@ -84,35 +83,6 @@ def cleanup_pycache(root_dir, dry_run=False):
     
     print(f"Found {len(pycache_dirs)} __pycache__ directories and {len(pyc_files)} .pyc/.pyo files")
     print(f"Removed {removed_dirs} directories and {removed_files} files")
-
-def cleanup_cache(root_dir, dry_run=False):
-    """Remove cache directory and database files."""
-    print("\nCleaning up cache files and databases...")
-    
-    # Find and remove cache directory
-    cache_dir = os.path.join(root_dir, "cache")
-    if os.path.exists(cache_dir):
-        if dry_run:
-            print(f"Would remove directory: {cache_dir}")
-        else:
-            print(f"Removing directory: {cache_dir}")
-            shutil.rmtree(cache_dir)
-    
-    # Find and remove database files
-    db_files = []
-    for ext in ["*.db", "*.sqlite", "*.sqlite3"]:
-        pattern = os.path.join(root_dir, "**", ext)
-        db_files.extend(glob.glob(pattern, recursive=True))
-    
-    # Report and delete
-    for db_file in db_files:
-        if dry_run:
-            print(f"Would remove file: {db_file}")
-        else:
-            print(f"Removing file: {db_file}")
-            os.remove(db_file)
-    
-    print(f"Found {1 if os.path.exists(cache_dir) else 0} cache directories and {len(db_files)} database files")
 
 def cleanup_logs(root_dir, dry_run=False):
     """Remove log files and directories."""
@@ -211,9 +181,6 @@ def main():
     
     # Clean up files
     cleanup_pycache(root_dir, args.dry_run)
-    
-    if not args.keep_cache:
-        cleanup_cache(root_dir, args.dry_run)
     
     if not args.keep_logs:
         cleanup_logs(root_dir, args.dry_run)
